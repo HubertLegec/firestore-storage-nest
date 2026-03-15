@@ -97,4 +97,55 @@ describe("User model (root collection)", () => {
 
     expect(found).toBeNull();
   });
+
+  describe("query", () => {
+    it("filters with '>' condition", async () => {
+      await userRepo.write(userModel(userRepo.generateId(), "Alice", "alice@example.com"));
+      await userRepo.write(userModel(userRepo.generateId(), "Bob", "bob@example.com"));
+      await userRepo.write(userModel(userRepo.generateId(), "Carol", "carol@example.com"));
+
+      const list = await userRepo.query((q) => q.where("name", ">", "B"), undefined);
+
+      expect(list).toHaveLength(2);
+      expect(list.map((u) => u.name).sort()).toEqual(["Bob", "Carol"]);
+    });
+
+    it("filters with '!=' condition", async () => {
+      const id1 = userRepo.generateId();
+      const id2 = userRepo.generateId();
+      await userRepo.write(userModel(id1, "Alice", "alice@example.com"));
+      await userRepo.write(userModel(id2, "Bob", "bob@example.com"));
+      await userRepo.write(userModel(userRepo.generateId(), "Carol", "carol@example.com"));
+
+      const list = await userRepo.query((q) => q.where("email", "!=", "bob@example.com"), undefined);
+
+      expect(list).toHaveLength(2);
+      expect(list.map((u) => u.email).sort()).toEqual(["alice@example.com", "carol@example.com"]);
+    });
+
+    it("filters with multiple conditions", async () => {
+      await userRepo.write(userModel(userRepo.generateId(), "Alice", "alice@example.com"));
+      await userRepo.write(userModel(userRepo.generateId(), "Bob", "bob@example.com"));
+      await userRepo.write(userModel(userRepo.generateId(), "Alice", "alice@example.com"));
+
+      const list = await userRepo.query(
+        (q) => q.where("name", "==", "Alice").where("email", "==", "alice@example.com"),
+        undefined,
+      );
+
+      expect(list).toHaveLength(2);
+      expect(list.every((u) => u.name === "Alice" && u.email === "alice@example.com")).toBe(true);
+    });
+
+    it("returns results in orderBy order", async () => {
+      await userRepo.write(userModel(userRepo.generateId(), "Carol", "c@example.com"));
+      await userRepo.write(userModel(userRepo.generateId(), "Alice", "a@example.com"));
+      await userRepo.write(userModel(userRepo.generateId(), "Bob", "b@example.com"));
+
+      const list = await userRepo.query((q) => q.orderBy("name", "asc"));
+
+      expect(list).toHaveLength(3);
+      expect(list.map((u) => u.name)).toEqual(["Alice", "Bob", "Carol"]);
+    });
+  });
 });

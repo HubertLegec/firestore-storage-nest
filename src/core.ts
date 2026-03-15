@@ -9,6 +9,7 @@ export const FIRESTORE = Symbol("FIRESTORE");
 export interface FirestoreStorageModuleAsyncOptions {
   useFactory: () => Firestore;
   inject?: unknown[];
+  global?: boolean;
 }
 
 @Module({})
@@ -16,7 +17,7 @@ export class FirestoreStorageNestModule {
   static forRootAsync(options: FirestoreStorageModuleAsyncOptions): DynamicModule {
     return {
       module: FirestoreStorageNestModule,
-      global: false,
+      global: options.global ?? false,
       providers: [
         {
           provide: FIRESTORE,
