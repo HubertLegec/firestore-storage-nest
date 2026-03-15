@@ -1,13 +1,20 @@
+import { Timestamp } from "@google-cloud/firestore";
 import type { ModelTransformer } from "../../src/model-transformer";
 import { Post, User } from "./entities";
 import type { PostModel, UserModel } from "./models";
 
-/** Normalizes Firestore Timestamp or Date to Date (emulator returns Timestamp). */
-function toDate(value: Date | number): Date {
+/** Normalizes Firestore Timestamp or Date to Date (emulator/in-memory returns Timestamp). */
+function toDate(value: Date | number | Timestamp): Date {
   if (value instanceof Date) {
     return value;
   }
-  return new Date(value);
+  if (typeof value === "number") {
+    return new Date(value);
+  }
+  if (value instanceof Timestamp) {
+    return value.toDate();
+  }
+  return new Date(value as unknown as number);
 }
 
 export class UserTransformer implements ModelTransformer<User, UserModel> {

@@ -71,13 +71,20 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v6
+      - name: Generate Token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
         with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Use the App's token instead of GITHUB_TOKEN
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
+          token: ${{ steps.generate-token.outputs.token }}
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -90,8 +97,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "hubertlegec-release-app[bot]"
+          git config user.email "hubertlegec-release-app[bot]@users.noreply.github.com"
 
       - name: Verify main is at released version
         run: |

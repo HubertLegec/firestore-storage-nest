@@ -8,10 +8,10 @@ import { PostsCollection, UsersCollection } from "./paths";
 import { PostTransformer, UserTransformer } from "./transformers";
 
 @Repository({ path: UsersCollection })
-class UserModelRepository extends BaseRepository<UserModel, typeof UsersCollection> {}
+export class UserModelRepository extends BaseRepository<UserModel, typeof UsersCollection> {}
 
 @Repository({ path: PostsCollection })
-class PostModelRepository extends BaseRepository<PostModel, typeof PostsCollection> {}
+export class PostModelRepository extends BaseRepository<PostModel, typeof PostsCollection> {}
 
 export class UserEntityRepository extends EntityRepository<User, UserModel> {
   constructor(firestore: Firestore) {
