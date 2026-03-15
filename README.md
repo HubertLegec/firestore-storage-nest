@@ -129,6 +129,17 @@ From the repo:
 
 The tests in `test/` demonstrate root and nested entity CRUD (create, update, fetch, list, delete) using `EntityRepository`, `withMemoryStorage`, and `TestFirestoreClearService`.
 
+### Releasing
+
+Releases are automated via GitHub Actions (`.github/workflows/release.yml`). To publish:
+
+1. Set the version in `package.json` (e.g. `0.0.2`).
+2. Commit, push to `main`, then create and push a tag matching that version: `git tag v0.0.2 && git push origin v0.0.2`.
+
+The workflow will: publish the package to npm (using the version in `package.json`), create a GitHub Release from the tag with generated release notes, then bump the version on `main` (patch increment) and push the commit.
+
+**Required:** Add an `NPM_TOKEN` repository secret (Settings → Secrets and variables → Actions). Use an npm [automation token](https://docs.npmjs.com/creating-and-viewing-access-tokens) or granular access token with “Publish packages” permission.
+
 ## License
 
 MIT
