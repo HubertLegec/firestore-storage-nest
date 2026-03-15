@@ -8,7 +8,6 @@ export { EntityRepository, type Id } from "./entity-repository";
 export { createMemoryFirestore } from "./firestore-memory";
 export type { ModelTransformer } from "./model-transformer";
 export { FirestoreStorageNestModule } from "./module-with-memory";
-export { pathToCollectionIds, pathToDocumentIds } from "./path-ids";
 export {
   TestFirestoreClearService,
   withMemoryStorage,
