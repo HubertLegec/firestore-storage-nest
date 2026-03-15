@@ -3,5 +3,6 @@
   "editor.codeActionsOnSave": {
       "source.organizeImports": "explicit"
   },
-  "git.enableCommitSigning": true
+  "git.enableCommitSigning": true,
+  "vitest.enable": true
 }
