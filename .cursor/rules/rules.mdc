@@ -1,0 +1,55 @@
+---
+description: Project guidelines — structure, principles, engineering standards, and commands
+alwaysApply: true
+---
+
+# Project objective
+
+NestJS module for Firestore integration with [firestore-storage](https://www.npmjs.com/package/firestore-storage) v7. Provides shared Firestore via DI (`forRootAsync`), in-memory Firestore for tests (`withMemoryStorage`), and repository helpers (`EntityRepository`, `ModelTransformer`, path helpers). Enables testing without the Firebase Emulator.
+
+# Project Guidelines
+
+## Project Structure
+
+- **`src/`** — Library source: `core.ts` (module, DI token), `entity-repository.ts`, `model-transformer.ts`, `path-ids.ts`, `firestore-memory.ts`, `module-with-memory.ts`, `testing.ts`, `index.ts` (public API).
+- **`test/`** — Integration tests (`*.integration.test.ts`), fixtures (entities, models, paths, repositories, transformers), helpers (e.g. Firestore setup). Tests run against in-memory Firestore by default; use `FIRESTORE_EMULATOR_HOST` for emulator.
+- **`dist/`** — Build output (do not edit).
+
+## Core Principles
+
+1. **Source of Truth:** Trust code over documentation. Verify against reality.
+2. **Autonomous Execution:** Research first, then implement end-to-end. Fix related issues (A reveals B → fix both).
+3. **Professionalism:** No emojis. Concise, technical commit messages.
+4. **Research Protocol:** Discovery → Verification → Execution. Map data flow and architecture before changing complex logic.
+
+## Engineering Standards
+
+- **TypeScript:** Do not use `any`. Use casting only when types match. Use explicit interfaces. Handle null/undefined.
+- **Testing:** Mandatory for new features and bug fixes. Use `vitest`. Delete any test output files after testing. Use TDD as much as possible.
+- **Quality:** Task is done only when it works end-to-end, is linted, formatted according to Prettier, and has test coverage.
+- **DRY:** Leverage existing code patterns.
+- **Security:** Follow OWASP guidelines. Avoid SQL/NoSQL injection, XSS, and CSRF.
+
+## Commands
+
+- Test: `pnpm test`
+- Build: `pnpm build`
+- Lint: `pnpm lint`
+
+
+## Search & Safety
+
+- **Bounded Searches:** Always use `head_limit` (20–50). Specify paths when possible.
+- **Thoroughness:** If a search fails, try broader patterns or `ls -R` before giving up.
+- **Context:** Read only directly relevant files. Use `grep` before reading full files.
+
+## Communication Style
+
+- Direct and actionable.
+- No preamble (e.g. "I will try to...").
+- After completion: concise summary with `file:line` references.
+
+## Task Management
+
+- Use `TodoWrite` for tasks with 3+ steps or high complexity.
+- Execute trivial tasks directly.

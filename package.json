@@ -1,0 +1,65 @@
+{
+  "name": "firestore-storage-nest",
+  "version": "0.0.1",
+  "description": "A NestJS module that simplifies integration with Firestore database and makes testing easier",
+  "author": "Hubert Legęć",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hubertlegec/firestore-storage-nest.git"
+  },
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:emulator": "FIRESTORE_EMULATOR_HOST=localhost:8080 vitest run",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" \"test/**/*.ts\" --fix"
+  },
+  "peerDependencies": {
+    "@google-cloud/firestore": ">=6.0.0",
+    "@nestjs/common": ">=10.0.0",
+    "firestore-storage": ">=7.0.0",
+    "firestore-storage-core": ">=7.0.0"
+  },
+  "optionalDependencies": {
+    "@firebase-bridge/firestore-admin": "^0.0.9"
+  },
+  "keywords": [
+    "nestjs",
+    "firestore",
+    "firebase",
+    "firestore-storage",
+    "testing",
+    "in-memory"
+  ],
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.17.0",
+    "@firebase-bridge/firestore-admin": "^0.0.9",
+    "@google-cloud/firestore": "^7.0.0",
+    "@nestjs/common": "^11.1.14",
+    "@nestjs/core": "^11.1.14",
+    "@nestjs/testing": "^11.1.14",
+    "reflect-metadata": "^0.2.2",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "@vitest/eslint-plugin": "^1.6.0",
+    "eslint": "^10.0.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^15.14.0",
+    "firebase-admin": "^13.0.0",
+    "firestore-storage": "^7.2.1",
+    "firestore-storage-core": "^7.0.5",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "private": false
+}
