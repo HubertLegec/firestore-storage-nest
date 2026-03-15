@@ -1,6 +1,6 @@
 {
   "name": "@hubert.legec/firestore-storage-nest",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A NestJS module that simplifies integration with Firestore database and makes testing easier",
   "author": "Hubert Legęć",
   "repository": {
