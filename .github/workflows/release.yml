@@ -1,9 +1,11 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name }}
 
 permissions:
   id-token: write  # Required for OIDC
@@ -16,13 +18,11 @@ defaults:
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout tag
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -37,7 +37,7 @@ jobs:
 
       - name: Verify version matches tag
         run: |
-          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          TAG_VERSION="${RELEASE_TAG#v}"
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
             echo "Tag version ($TAG_VERSION) does not match package.json version ($PKG_VERSION)"
@@ -64,13 +64,6 @@ jobs:
 
       - name: Publish to npm
         run: pnpm publish --no-git-checks --access public
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   bump:
     runs-on: ubuntu-latest
@@ -102,7 +95,7 @@ jobs:
 
       - name: Verify main is at released version
         run: |
-          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          TAG_VERSION="${RELEASE_TAG#v}"
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
             echo "main branch version ($PKG_VERSION) does not match released tag ($TAG_VERSION). Skip bump or fix manually."
