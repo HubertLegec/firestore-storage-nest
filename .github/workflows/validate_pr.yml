@@ -9,7 +9,7 @@ defaults:
     shell: bash
 
 jobs:
-  ci:
+  validate_pr:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,17 +46,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
       - name: Lint
         run: pnpm lint
 
       - name: Test (in-memory)
         run: pnpm test
 
+      - name: Start Firebase Emulator
+        uses: invertase/firebase-emulator-action@v1
+        with:
+          firebase-tools-version: "latest"
+          emulators: "firestore"
+          project-id: "test-project"
+          check-port: "8080"
       - name: Test (Firestore emulator)
-        run: firebase emulators:exec --only firestore "pnpm run test:emulator"
+        run: pnpm run test:emulator
 
       - name: Build
         run: pnpm build
