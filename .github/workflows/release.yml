@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
 
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
 defaults:
   run:
     shell: bash
@@ -59,9 +63,7 @@ jobs:
         run: pnpm build
 
       - name: Publish to npm
-        run: pnpm publish --no-git-checks --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
