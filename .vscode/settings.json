@@ -1,8 +1,7 @@
 {
   "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-        "source.organizeImports": "explicit"
-    },
-    "git.enableCommitSigning": true,
-    "vitest.enable": true
+  "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+  },
+  "git.enableCommitSigning": true
 }
