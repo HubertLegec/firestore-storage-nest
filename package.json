@@ -5,7 +5,7 @@
   "author": "Hubert Legęć",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hubertlegec/firestore-storage-nest.git"
+    "url": "https://github.com/HubertLegec/firestore-storage-nest"
   },
   "license": "MIT",
   "main": "dist/index.js",
