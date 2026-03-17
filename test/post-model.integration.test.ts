@@ -114,4 +114,82 @@ describe("Post model (nested under user)", () => {
     const found = await postRepo.findById(documentIds(postId));
     expect(found).toBeNull();
   });
+
+  describe("query", () => {
+    it("filters with '>' condition on date", async () => {
+      const cutoff = new Date("2025-02-01T00:00:00Z");
+      await postRepo.write(
+        postModel(postRepo.generateId(), "Old", "B1", new Date("2025-01-15T10:00:00Z")),
+        collectionIds(),
+      );
+      await postRepo.write(
+        postModel(postRepo.generateId(), "New1", "B2", new Date("2025-02-10T10:00:00Z")),
+        collectionIds(),
+      );
+      await postRepo.write(
+        postModel(postRepo.generateId(), "New2", "B3", new Date("2025-03-01T10:00:00Z")),
+        collectionIds(),
+      );
+
+      const list = await postRepo.query((q) => q.where("publishedAt", ">", cutoff), collectionIds());
+
+      expect(list).toHaveLength(2);
+      expect(list.map((p) => p.title).sort()).toEqual(["New1", "New2"]);
+    });
+
+    it("filters with '!=' condition", async () => {
+      await postRepo.write(postModel(postRepo.generateId(), "Draft", "B1", new Date()), collectionIds());
+      await postRepo.write(postModel(postRepo.generateId(), "Published", "B2", new Date()), collectionIds());
+      await postRepo.write(postModel(postRepo.generateId(), "Archived", "B3", new Date()), collectionIds());
+
+      const list = await postRepo.query((q) => q.where("title", "!=", "Published"), collectionIds());
+
+      expect(list).toHaveLength(2);
+      expect(list.map((p) => p.title).sort()).toEqual(["Archived", "Draft"]);
+    });
+
+    it("filters with multiple conditions", async () => {
+      const after = new Date("2025-01-01T00:00:00Z");
+      await postRepo.write(
+        postModel(postRepo.generateId(), "News", "B1", new Date("2025-02-01T10:00:00Z")),
+        collectionIds(),
+      );
+      await postRepo.write(
+        postModel(postRepo.generateId(), "News", "B2", new Date("2024-06-01T10:00:00Z")),
+        collectionIds(),
+      );
+      await postRepo.write(
+        postModel(postRepo.generateId(), "Other", "B3", new Date("2025-03-01T10:00:00Z")),
+        collectionIds(),
+      );
+
+      const list = await postRepo.query(
+        (q) => q.where("title", "==", "News").where("publishedAt", ">", after),
+        collectionIds(),
+      );
+
+      expect(list).toHaveLength(1);
+      expect(list[0]).toMatchObject({ title: "News", body: "B1" });
+    });
+
+    it("returns results in orderBy order", async () => {
+      await postRepo.write(
+        postModel(postRepo.generateId(), "Third", "B1", new Date("2025-03-01T10:00:00Z")),
+        collectionIds(),
+      );
+      await postRepo.write(
+        postModel(postRepo.generateId(), "First", "B2", new Date("2025-01-01T10:00:00Z")),
+        collectionIds(),
+      );
+      await postRepo.write(
+        postModel(postRepo.generateId(), "Second", "B3", new Date("2025-02-01T10:00:00Z")),
+        collectionIds(),
+      );
+
+      const list = await postRepo.query((q) => q.orderBy("publishedAt", "asc"), collectionIds());
+
+      expect(list).toHaveLength(3);
+      expect(list.map((p) => p.title)).toEqual(["First", "Second", "Third"]);
+    });
+  });
 });
