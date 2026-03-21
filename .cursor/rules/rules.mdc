@@ -36,6 +36,10 @@ NestJS module for Firestore integration with [firestore-storage](https://www.npm
 - Build: `pnpm build`
 - Lint: `pnpm lint`
 
+## Git
+
+- Use **GPG-signed commits** (`git commit -S`, or rely on `commit.gpgsign` when configured).
+
 
 ## Search & Safety
 
