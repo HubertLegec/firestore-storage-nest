@@ -1,0 +1,57 @@
+---
+description: npm release — create GitHub release with gh CLI (triggers release.yml)
+globs: "**/package.json"
+alwaysApply: false
+---
+
+# npm release (GitHub → npm)
+
+Publishing uses `.github/workflows/release.yml`: trigger is **`release`** with type **`published`**. A **draft** release does **not** run the workflow.
+
+## Preconditions
+
+1. **`main`** already has the shipping version in **`package.json`** (workflow verifies tag ↔ `package.json`; the bump job expects **`main`** to match the released tag before it bumps patch).
+2. **Tag:** `v<semver>` must match `package.json` exactly (e.g. `0.0.8` → tag **`v0.0.8`**).
+3. Authenticate **`gh`** for the repo (`gh auth login`). Use a token with permission to create releases.
+
+## Resolve tags
+
+- **New tag:** `v` + `version` from `package.json` on `main` (e.g. `v0.0.8`).
+- **Previous tag** (for release notes baseline): after `git fetch --tags`, list tags and pick the prior release tag, e.g. `git tag -l 'v*' --sort=-v:refname | head -2`.
+
+## Create the release (prefer GitHub CLI)
+
+Use **`gh api`** (REST). If the tag does not exist yet, GitHub creates it from **`target_commitish`**.
+
+Replace `OWNER`, `REPO`, `NEW_TAG`, and `PREVIOUS_TAG`. Repository: `package.json` → `repository.url` (e.g. `HubertLegec/firestore-storage-nest`).
+
+```bash
+gh api repos/OWNER/REPO/releases \
+  -f tag_name='NEW_TAG' \
+  -f target_commitish='main' \
+  -f name='Release NEW_TAG' \
+  -F draft=false \
+  -F generate_release_notes=true \
+  -f previous_tag_name='PREVIOUS_TAG'
+```
+
+**First release** (no prior tag): omit `previous_tag_name`:
+
+```bash
+gh api repos/OWNER/REPO/releases \
+  -f tag_name='NEW_TAG' \
+  -f target_commitish='main' \
+  -f name='Release NEW_TAG' \
+  -F draft=false \
+  -F generate_release_notes=true
+```
+
+## After publish
+
+- Confirm the **Release** workflow ran on the **published** release.
+- Confirm npm shows the new version.
+- Confirm **`main`** received the post-release **patch** bump commit (requires `RELEASE_APP_*` secrets in the workflow).
+
+## Reference
+
+- Workflow: `on.release.types: [published]`, checkout `github.event.release.tag_name`, version check, `pnpm publish`, then bump on `main`.
