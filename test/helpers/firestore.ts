@@ -1,7 +1,6 @@
-import { getApps } from "firebase-admin/app";
-import { initializeApp } from "firebase-admin/app";
+import { getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { createMemoryFirestore } from "../../src/firestore-memory";
+import { createMemoryFirestore } from "../../src";
 
 /**
  * Returns a Firestore instance for tests.

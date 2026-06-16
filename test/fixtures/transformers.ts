@@ -1,5 +1,5 @@
 import { Timestamp } from "@google-cloud/firestore";
-import type { ModelDataWithOptionalId, ModelTransformer } from "../../src/model-transformer";
+import type { ModelDataWithOptionalId, ModelTransformer } from "../../src";
 import { Post, User } from "./entities";
 import type { PostModel, UserModel } from "./models";
 

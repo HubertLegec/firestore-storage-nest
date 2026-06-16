@@ -51,6 +51,7 @@ export default [
       "@typescript-eslint/interface-name-prefix": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
       "@typescript-eslint/no-unsafe-return": "error",
+      "no-duplicate-imports": "error",
       "@typescript-eslint/member-ordering": [
         "error",
         {

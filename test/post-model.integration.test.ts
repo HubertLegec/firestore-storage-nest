@@ -1,6 +1,5 @@
 import { Test } from "@nestjs/testing";
-import { FIRESTORE } from "../src/core";
-import { TestFirestoreClearService, withMemoryStorage } from "../src/testing";
+import { TestFirestoreClearService, withMemoryStorage, FIRESTORE } from "../src";
 import type { PostModel } from "./fixtures/models";
 import { PostModelRepository, UserModelRepository } from "./fixtures/repositories";
 import { getTestFirestore } from "./helpers/firestore";

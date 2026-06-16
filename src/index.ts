@@ -4,8 +4,9 @@
  * Repository helpers: EntityRepository, path-ids, ModelTransformer.
  */
 export { FIRESTORE, type FirestoreStorageModuleAsyncOptions } from "./core";
-export { EntityRepository, type Id } from "./entity-repository";
+export { EntityRepository, type BulkDeleteItem, type BulkSaveItem, type Id } from "./entity-repository";
 export { createMemoryFirestore } from "./firestore-memory";
+export { ModelRepository } from "./model-repository";
 export type { ModelDataWithOptionalId, ModelTransformer } from "./model-transformer";
 export { FirestoreStorageNestModule } from "./module-with-memory";
 export {
