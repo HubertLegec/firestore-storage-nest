@@ -1,5 +1,7 @@
-import { BaseRepository, Query } from "firestore-storage";
+import type { WriteBatch } from "@google-cloud/firestore";
+import { Query } from "firestore-storage";
 import type { BaseModel, CollectionPath, ModelQuery } from "firestore-storage-core";
+import { ModelRepository } from "./model-repository";
 import type { ModelTransformer } from "./model-transformer";
 
 type Path = CollectionPath<string, string, void | object>;
@@ -19,9 +21,23 @@ function getOrderedIdKeys(path: Path | undefined): string[] {
   return [...getOrderedIdKeys(p.parent), p.idKey];
 }
 
+export interface BulkSaveItem<E> {
+  readonly value: E;
+  readonly parentIds?: Id[];
+}
+
+export interface BulkDeleteItem {
+  readonly id: Id;
+  readonly parentIds?: Id[];
+}
+
 export abstract class EntityRepository<E, M extends BaseModel> {
+  // Firestore caps WriteBatch and Transaction commits at 500 operations.
+  // https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes
+  private static readonly BATCH_LIMIT = 500;
+
   protected constructor(
-    protected readonly modelRepository: BaseRepository<M, Path>,
+    protected readonly modelRepository: ModelRepository<M, Path>,
     protected readonly modelTransformer: ModelTransformer<E, M>,
   ) {}
 
@@ -36,9 +52,55 @@ export abstract class EntityRepository<E, M extends BaseModel> {
     return this.modelTransformer.fromModel(saved);
   }
 
+  /**
+   * Save many entities under a shared parent path in batched commits.
+   * Splits into chunks of 500 (Firestore WriteBatch limit). Not atomic across chunks:
+   * if commit of a later chunk fails, prior chunks remain persisted.
+   * Auto-generated document ids are not surfaced — pre-generate ids via {@link generateId} when needed.
+   */
+  async bulkSave(values: E[], ...parentIds: Id[]): Promise<void> {
+    await this.bulkSaveAll(values.map((value) => ({ value, parentIds })));
+  }
+
+  /**
+   * Save many entities across potentially different parent paths in batched commits.
+   * Use for fan-out writes where each entity lives under a different parent document.
+   * Splits into chunks of 500 (Firestore WriteBatch limit). Not atomic across chunks.
+   * Auto-generated document ids are not surfaced — pre-generate ids via {@link generateId} when needed.
+   */
+  async bulkSaveAll(items: BulkSaveItem<E>[]): Promise<void> {
+    await this.commitInChunks(items, (batch, { value, parentIds = [] }) => {
+      const model = this.modelTransformer.toModel(value);
+      const { id, data } = this.modelRepository.toFirestoreDocument(model);
+      const docRef = id
+        ? this.modelRepository.docRef(this.pathToDocumentIds(this.getPath(), [...parentIds, id]))
+        : this.modelRepository.newDocRef(this.pathToCollectionIds(this.getPath(), parentIds));
+      batch.set(docRef, data);
+    });
+  }
+
   delete(id: Id, ...parentIds: Id[]): Promise<void> {
     const documentIds = this.pathToDocumentIds(this.getPath(), [...parentIds, id]);
     return this.modelRepository.delete(documentIds);
+  }
+
+  /**
+   * Delete many documents under a shared parent path in batched commits.
+   * Splits into chunks of 500 (Firestore WriteBatch limit). Not atomic across chunks.
+   */
+  async bulkDelete(ids: Id[], ...parentIds: Id[]): Promise<void> {
+    await this.bulkDeleteAll(ids.map((id) => ({ id, parentIds })));
+  }
+
+  /**
+   * Delete many documents across potentially different parent paths in batched commits.
+   * Splits into chunks of 500 (Firestore WriteBatch limit). Not atomic across chunks.
+   */
+  async bulkDeleteAll(items: BulkDeleteItem[]): Promise<void> {
+    await this.commitInChunks(items, (batch, { id, parentIds = [] }) => {
+      const docRef = this.modelRepository.docRef(this.pathToDocumentIds(this.getPath(), [...parentIds, id]));
+      batch.delete(docRef);
+    });
   }
 
   async findById(id: Id, ...parentIds: Id[]): Promise<E | null> {
@@ -91,6 +153,21 @@ export abstract class EntityRepository<E, M extends BaseModel> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected modelCustomFilter(_model: M): boolean {
     return true;
+  }
+
+  /**
+   * Slice `items` into BATCH_LIMIT-sized chunks and commit each chunk in its own WriteBatch.
+   * Empty input is a no-op. Not atomic across chunks.
+   */
+  private async commitInChunks<T>(items: T[], applyToBatch: (batch: WriteBatch, item: T) => void): Promise<void> {
+    for (let start = 0; start < items.length; start += EntityRepository.BATCH_LIMIT) {
+      const chunk = items.slice(start, start + EntityRepository.BATCH_LIMIT);
+      await this.modelRepository.withBatch((batch) => {
+        for (const item of chunk) {
+          applyToBatch(batch, item);
+        }
+      });
+    }
   }
 
   /**
