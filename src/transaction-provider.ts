@@ -1,6 +1,6 @@
 import type { Firestore, Transaction } from "@google-cloud/firestore";
 import { Inject, Injectable } from "@nestjs/common";
-import { FIRESTORE } from "./core";
+import { FIRESTORE } from "./tokens";
 
 /**
  * Cross-cutting transaction orchestration service. Runs work inside a Firestore transaction.
