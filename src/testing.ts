@@ -5,6 +5,7 @@
 import type { Firestore, QueryDocumentSnapshot } from "@google-cloud/firestore";
 import { DynamicModule, Inject, Injectable } from "@nestjs/common";
 import { FIRESTORE, FirestoreStorageNestModule } from "./core";
+import { TransactionProvider } from "./transaction-provider";
 
 /** Interface for test helper that clears a collection by path. */
 export interface TestFirestoreClear {
@@ -41,7 +42,7 @@ export function withMemoryStorage(options: WithMemoryStorageOptions): DynamicMod
   return {
     module: FirestoreStorageNestModule,
     global: false,
-    providers: [{ provide: FIRESTORE, useFactory: options.useFactory }, TestFirestoreClearService],
-    exports: [FIRESTORE, TestFirestoreClearService],
+    providers: [{ provide: FIRESTORE, useFactory: options.useFactory }, TestFirestoreClearService, TransactionProvider],
+    exports: [FIRESTORE, TestFirestoreClearService, TransactionProvider],
   };
 }

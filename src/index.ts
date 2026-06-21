@@ -15,3 +15,4 @@ export {
   type TestFirestoreClear,
   type WithMemoryStorageOptions,
 } from "./testing";
+export { TransactionProvider } from "./transaction-provider";

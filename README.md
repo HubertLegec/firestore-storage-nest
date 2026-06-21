@@ -105,10 +105,83 @@ The package’s integration tests use a helper that switches to the emulator whe
 
 ## Repository helpers
 
-- **`EntityRepository<E, M>`** – Abstract base for entity repositories (varargs API over firestore-storage v7).
-- **`ModelTransformer<E, M>`** – Interface for converting between entity `E` and firestore-storage model `M`.
-- **`pathToDocumentIds(path, ids)`** / **`pathToCollectionIds(path, ids)`** – Build v7 `DocumentIds` / `CollectionIds` from an ordered list of ids.
-- **`Id`** – Type alias for entity id (string).
+### TransactionProvider
+
+A cross-cutting service for orchestrating transactions across repositories or services. Inject it where you need atomic operations that span multiple documents or repositories.
+
+```ts
+import { Inject, Injectable } from "@nestjs/common";
+import { TransactionProvider } from "firestore-storage-nest";
+
+@Injectable()
+export class MyService {
+  constructor(private readonly transactionProvider: TransactionProvider) {}
+
+  async transferFunds(fromUserId: string, toUserId: string, amount: number) {
+    return this.transactionProvider.withTransaction(async (transaction) => {
+      const fromRef = userCollection.doc(fromUserId);
+      const toRef = userCollection.doc(toUserId);
+
+      const fromSnap = await transaction.get(fromRef);
+      const toSnap = await transaction.get(toRef);
+
+      const fromBalance = (fromSnap.data()?.balance ?? 0) - amount;
+      const toBalance = (toSnap.data()?.balance ?? 0) + amount;
+
+      transaction.update(fromRef, { balance: fromBalance });
+      transaction.update(toRef, { balance: toBalance });
+      return { fromBalance, toBalance };
+    });
+  }
+}
+```
+
+All reads must precede writes within the callback (standard Firestore rule). The transaction rolls back automatically if the callback throws.
+
+### ModelRepository
+
+Extend `ModelRepository<M, Path>` instead of upstream's `BaseRepository` to get batch, transaction, and document reference helpers without exposing the underlying `Firestore` instance.
+
+#### `withBatch(work)`
+
+Opens a `WriteBatch`, executes `work(batch)`, and commits on success. The batch lifecycle is owned by the method — callers only add operations. Firestore caps a batch at 500 operations.
+
+```ts
+await userRepo.withBatch((batch) => {
+  batch.set(userRepo.docRef({ userId: "u1" }), { name: "Alice", email: "alice@example.com" });
+  batch.set(userRepo.docRef({ userId: "u2" }), { name: "Bob",   email: "bob@example.com" });
+});
+```
+
+#### `withTransaction<T>(work)`
+
+Runs `work(transaction)` inside a Firestore transaction and returns whatever the callback resolves with. All reads must precede writes within the callback (standard Firestore rule). Rolls back automatically if the callback throws.
+
+```ts
+const result = await userRepo.withTransaction(async (transaction) => {
+  const snap = await transaction.get(userRepo.docRef({ userId: "u1" }));
+  const newBalance = (snap.data()?.balance ?? 0) + 100;
+  transaction.update(userRepo.docRef({ userId: "u1" }), { balance: newBalance });
+  return newBalance;
+});
+```
+
+#### `docRef(ids)` / `newDocRef(ids)`
+
+Return a `DocumentReference` for an existing path or a new auto-generated path, respectively. Useful for building references to pass into batch or transaction operations.
+
+```ts
+const ref = userRepo.docRef({ userId: "abc" });        // /users/abc
+const ref = userRepo.newDocRef();                      // /users/<generated-id>
+```
+
+### EntityRepository
+
+`EntityRepository<E, M>` is the abstract base for entity repositories. It maps between a domain entity `E` and a Firestore model `M` via a `ModelTransformer`, and delegates all storage to an inner `ModelRepository`.
+
+Key methods: `save`, `bulkSave`, `bulkSaveAll`, `delete`, `bulkDelete`, `bulkDeleteAll`, `findById`, `findAllById`, `list`, `listAll`, `query`, `generateId`, `withTransaction`.
+
+> **Note:** Transaction tests require the Firestore emulator because the in-memory backend does not implement `runTransaction`. Run `pnpm test:emulator` to execute them.
 
 ## API summary
 
@@ -118,7 +191,11 @@ The package’s integration tests use a helper that switches to the emulator whe
 | `FirestoreStorageNestModule` | Module with `forRootAsync(options)` and `withMemoryStorage(options?)` |
 | `TestFirestoreClearService` | Service to clear collections in tests |
 | `createMemoryFirestore()` | Returns an in-memory Firestore instance |
-| `EntityRepository`, `ModelTransformer`, `pathToDocumentIds`, `pathToCollectionIds`, `Id` | Repository and path helpers |
+| `TransactionProvider` | Service for orchestrating transactions with `withTransaction<T>(work)` |
+| `ModelRepository<M, Path>` | Base repository with `withBatch`, `docRef`, `newDocRef` |
+| `EntityRepository<E, M>` | Abstract entity repository with full CRUD (`save`, `delete`, `findById`, `list`, etc.) |
+| `ModelTransformer<E, M>` | Interface for entity ↔ model conversion |
+| `Id` | Type alias for entity id (`string`) |
 
 ## Development
 

@@ -3,8 +3,10 @@
  */
 import { DynamicModule, InjectionToken, Module } from "@nestjs/common";
 import type { Firestore } from "@google-cloud/firestore";
+import { TransactionProvider } from "./transaction-provider";
+import { FIRESTORE } from "./tokens";
 
-export const FIRESTORE = Symbol("FIRESTORE");
+export { FIRESTORE };
 
 export interface FirestoreStorageModuleAsyncOptions {
   useFactory: () => Firestore;
@@ -24,8 +26,9 @@ export class FirestoreStorageNestModule {
           useFactory: options.useFactory,
           inject: (options.inject ?? []) as InjectionToken[],
         },
+        TransactionProvider,
       ],
-      exports: [FIRESTORE],
+      exports: [FIRESTORE, TransactionProvider],
     };
   }
 }
