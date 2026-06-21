@@ -7,12 +7,15 @@ Guidance for working with `@hubert.legec/firestore-storage-nest`.
 A thin NestJS adapter around the [`firestore-storage`](https://github.com/freshfox/firestore-storage) repository library:
 
 - DI plumbing (`FIRESTORE` token, `FirestoreStorageNestModule`, `withMemoryStorage`).
-- `ModelRepository<T, Path>` — a subclass of upstream's `BaseRepository` that adds batch and document
-  reference helpers (`withBatch`, `docRef`, `newDocRef`) using its legitimate protected access to
-  `firestore`. Project model repositories should extend this class, not upstream's `BaseRepository`.
+- `ModelRepository<T, Path>` — a subclass of upstream's `BaseRepository` that adds batch
+  and document reference helpers (`withBatch`, `docRef`, `newDocRef`) using its legitimate
+  protected access to `firestore`. Project model repositories should extend this class, not upstream's
+  `BaseRepository`.
 - `EntityRepository<E, M>` — a composition wrapper that maps a domain entity to a Firestore-backed
   `ModelRepository`. Provides `save`, `bulkSave*`, `delete`, `bulkDelete*`, `findById`, `findAllById`,
   `list`, `listAll`, `query`, `generateId`.
+- `TransactionProvider` — cross-cutting service for orchestrating transactions across repositories or services.
+  Inject anywhere you need atomic operations; all reads precede writes (standard Firestore rule).
 - `ModelTransformer<E, M>` — entity ↔ model conversion contract used by `EntityRepository`.
 - An in-memory backend (`createMemoryFirestore`) and `TestFirestoreClearService` for tests.
 
@@ -83,9 +86,8 @@ access). Current public surface:
 - `docRef(ids)` — `DocumentReference` for an existing document path.
 - `newDocRef(ids)` — `DocumentReference` with an auto-generated id under the given collection.
 
-If you need more, add another method on `ModelRepository` in the same style: take the high-level
-input, do the Firestore work inside, return a typed result. Do not return the raw `WriteBatch`
-without an owning lifecycle, and never return the `Firestore` itself.
+For transactions across multiple repositories or services, use `TransactionProvider` instead.
+It's a standalone injectable service with a `withTransaction<T>(work)` method.
 
 ## Engineering Standards
 
@@ -122,6 +124,7 @@ without an owning lifecycle, and never return the `Firestore` itself.
 - **One Vitest file per area:** `test/*.integration.test.ts`. Use the existing fixture entities
   (`User`, `Post`) and repositories where possible; introduce new fixtures only when an existing
   one would mislead.
+- **Test names:** Drop the "should" prefix. Write `it("rolls back on error")` not `it("should roll back on error")`.
 - **Cover both backends:** Tests run against the in-memory backend by default
   (`createMemoryFirestore`). Run `pnpm test:emulator` before publishing to verify parity with real
   Firestore. New repository helpers that touch `WriteBatch`/`DocumentReference` semantics belong in
@@ -135,3 +138,6 @@ without an owning lifecycle, and never return the `Firestore` itself.
 
 - When the user corrects the same pattern twice in a session, suggest a permanent rule here so the
   guidance doesn't have to be repeated next session.
+- **Document every new public API in README.md.** This is a public open-source library. Any new
+  export (function, class, method, decorator, type) must be documented in `README.md` before the
+  work is considered done: add a prose section with a usage example and update the API summary table.
