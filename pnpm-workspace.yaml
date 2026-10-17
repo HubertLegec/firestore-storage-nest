@@ -3,3 +3,9 @@ allowBuilds:
   protobufjs: true
 minimumReleaseAgeExclude:
   - eslint@10.13.0
+# firestore-storage@7.2.1 depends on @google-cloud/firestore@^6, whose google-gax@3.6.1 pins
+# protobufjs@7.2.4 and protobufjs-cli@1.1.1, both with critical/high advisories. Remove once
+# firestore-storage moves to a current @google-cloud/firestore.
+overrides:
+  protobufjs: ^7.5.6
+  protobufjs-cli: ^1.3.2
