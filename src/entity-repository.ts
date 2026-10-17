@@ -1,4 +1,4 @@
-import type { WriteBatch } from "@google-cloud/firestore";
+import type { DocumentReference, DocumentSnapshot, Transaction, WriteBatch } from "@google-cloud/firestore";
 import { Query } from "firestore-storage";
 import type { BaseModel, CollectionPath, ModelQuery } from "firestore-storage-core";
 import { ModelRepository } from "./model-repository";
@@ -53,6 +53,17 @@ export abstract class EntityRepository<E, M extends BaseModel> {
   }
 
   /**
+   * Stage a write of `value` on the given transaction; it is persisted when the transaction commits.
+   * Overwrites any existing document with the same id. Firestore requires all transaction reads to
+   * precede writes, so call this after any {@link findByIdInTransaction} calls.
+   * Auto-generated document ids are not surfaced — pre-generate ids via {@link generateId} when needed.
+   */
+  saveInTransaction(transaction: Transaction, value: E, ...parentIds: Id[]): void {
+    const { id, data } = this.modelRepository.toFirestoreDocument(this.modelTransformer.toModel(value));
+    transaction.set(this.documentReference(id, parentIds), data);
+  }
+
+  /**
    * Save many entities under a shared parent path in batched commits.
    * Splits into chunks of 500 (Firestore WriteBatch limit). Not atomic across chunks:
    * if commit of a later chunk fails, prior chunks remain persisted.
@@ -70,12 +81,8 @@ export abstract class EntityRepository<E, M extends BaseModel> {
    */
   async bulkSaveAll(items: BulkSaveItem<E>[]): Promise<void> {
     await this.commitInChunks(items, (batch, { value, parentIds = [] }) => {
-      const model = this.modelTransformer.toModel(value);
-      const { id, data } = this.modelRepository.toFirestoreDocument(model);
-      const docRef = id
-        ? this.modelRepository.docRef(this.pathToDocumentIds(this.getPath(), [...parentIds, id]))
-        : this.modelRepository.newDocRef(this.pathToCollectionIds(this.getPath(), parentIds));
-      batch.set(docRef, data);
+      const { id, data } = this.modelRepository.toFirestoreDocument(this.modelTransformer.toModel(value));
+      batch.set(this.documentReference(id, parentIds), data);
     });
   }
 
@@ -107,6 +114,24 @@ export abstract class EntityRepository<E, M extends BaseModel> {
     const documentIds = this.pathToDocumentIds(this.getPath(), [...parentIds, id]);
     const model = await this.modelRepository.findById(documentIds);
     if (!model || !this.modelCustomFilter(model)) {
+      return null;
+    }
+    return this.modelTransformer.fromModel(model);
+  }
+
+  /**
+   * Read an entity as part of the given transaction, so the transaction fails over (retries) if the
+   * document changes before commit. Returns `null` when the document is missing or rejected by
+   * {@link modelCustomFilter}.
+   */
+  async findByIdInTransaction(transaction: Transaction, id: Id, ...parentIds: Id[]): Promise<E | null> {
+    const documentIds = this.pathToDocumentIds(this.getPath(), [...parentIds, id]);
+    const snapshot = await transaction.get(this.modelRepository.docRef(documentIds));
+    if (!snapshot.exists) {
+      return null;
+    }
+    const model = this.modelRepository.fromFirestoreToObject(snapshot as DocumentSnapshot<M>);
+    if (!this.modelCustomFilter(model)) {
       return null;
     }
     return this.modelTransformer.fromModel(model);
@@ -168,6 +193,17 @@ export abstract class EntityRepository<E, M extends BaseModel> {
         }
       });
     }
+  }
+
+  /**
+   * Reference to the document with `id` under the given parents, or a fresh auto-id reference
+   * in the parent collection when `id` is absent.
+   */
+  private documentReference(id: Id | undefined, parentIds: Id[]): DocumentReference {
+    if (id) {
+      return this.modelRepository.docRef(this.pathToDocumentIds(this.getPath(), [...parentIds, id]));
+    }
+    return this.modelRepository.newDocRef(this.pathToCollectionIds(this.getPath(), parentIds));
   }
 
   /**
