@@ -20,13 +20,13 @@
     "emulator:start": "firebase emulators:start --only firestore"
   },
   "peerDependencies": {
-    "@google-cloud/firestore": ">=6.0.0",
-    "@nestjs/common": ">=10.0.0",
+    "@google-cloud/firestore": ">=9.0.0",
+    "@nestjs/common": ">=12.0.0",
     "firestore-storage": ">=7.0.0",
     "firestore-storage-core": ">=7.0.0"
   },
   "optionalDependencies": {
-    "@firebase-bridge/firestore-admin": "^0.0.9"
+    "@firebase-bridge/firestore-admin": "^0.0.10"
   },
   "keywords": [
     "nestjs",
@@ -37,27 +37,27 @@
     "in-memory"
   ],
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/eslintrc": "^3.3.7",
     "@eslint/js": "^10.0.1",
-    "@firebase-bridge/firestore-admin": "^0.0.9",
-    "@google-cloud/firestore": "^8.6.0",
-    "@nestjs/common": "^11.1.27",
-    "@nestjs/core": "^11.1.27",
-    "@nestjs/testing": "^11.1.27",
-    "@typescript-eslint/eslint-plugin": "^8.61.1",
-    "@typescript-eslint/parser": "^8.61.1",
-    "@vitest/eslint-plugin": "^1.6.20",
-    "eslint": "^10.5.0",
+    "@firebase-bridge/firestore-admin": "^0.0.10",
+    "@google-cloud/firestore": "^9.3.1",
+    "@nestjs/common": "^12.1.3",
+    "@nestjs/core": "^12.1.3",
+    "@nestjs/testing": "^12.1.3",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
+    "@vitest/eslint-plugin": "^1.6.27",
+    "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.6",
-    "firebase-admin": "^14.0.0",
+    "eslint-plugin-prettier": "^5.5.7",
+    "firebase-admin": "^14.5.0",
     "firestore-storage": "^7.2.1",
     "firestore-storage-core": "^7.0.5",
-    "globals": "^17.6.0",
-    "prettier": "^3.8.4",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
     "reflect-metadata": "^0.2.2",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^5.0.5"
   },
   "files": [
     "dist"
