@@ -120,6 +120,64 @@ describe("EntityRepository transaction helpers", () => {
       });
     });
 
+    // Real Firestore (and the emulator) lock documents read in a transaction, so the outside write
+    // blocks until the lock times out (~60s) before the transaction is aborted and retried. The
+    // in-memory backend detects the conflict at commit time instead, so the retry is immediate.
+    it.skipIf(process.env.FIRESTORE_EMULATOR_HOST)(
+      "retries when the entity is updated outside the transaction between read and save",
+      async () => {
+        let attempts = 0;
+
+        await transactionProvider.withTransaction(async (transaction) => {
+          attempts += 1;
+          const user = await userRepository.findByIdInTransaction(transaction, testUserId);
+          if (!user) {
+            throw new Error("user not found");
+          }
+          if (attempts === 1) {
+            await userRepository.save({ ...user, name: "Alice Outside" });
+          }
+          userRepository.saveInTransaction(transaction, { ...user, name: `${user.name} (tx)` });
+        });
+
+        expect(attempts).toBe(2);
+        expect(await userRepository.findById(testUserId)).toEqual({
+          id: testUserId,
+          name: "Alice Outside (tx)",
+          email: "alice@example.com",
+        });
+      },
+    );
+
+    it("retries conflicting concurrent transactions without losing either update", async () => {
+      let attempts = 0;
+      let firstAttemptReads = 0;
+      let releaseWrites: () => void = () => {};
+      const bothRead = new Promise<void>((resolve) => {
+        releaseWrites = resolve;
+      });
+      const appendToName = (suffix: string) =>
+        transactionProvider.withTransaction(async (transaction) => {
+          attempts += 1;
+          const user = await userRepository.findByIdInTransaction(transaction, testUserId);
+          if (!user) {
+            throw new Error("user not found");
+          }
+          firstAttemptReads += 1;
+          if (firstAttemptReads === 2) {
+            releaseWrites();
+          }
+          await bothRead;
+          userRepository.saveInTransaction(transaction, { ...user, name: `${user.name} ${suffix}` });
+        });
+
+      await Promise.all([appendToName("A"), appendToName("B")]);
+
+      expect(attempts).toBeGreaterThan(2);
+      const saved = await userRepository.findById(testUserId);
+      expect(["Alice A B", "Alice B A"]).toContain(saved?.name);
+    });
+
     it("writes a nested entity using parent ids", async () => {
       const post: Post = {
         id: postRepository.generateId(),
