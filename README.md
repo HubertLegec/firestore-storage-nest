@@ -179,9 +179,26 @@ const ref = userRepo.newDocRef();                      // /users/<generated-id>
 
 `EntityRepository<E, M>` is the abstract base for entity repositories. It maps between a domain entity `E` and a Firestore model `M` via a `ModelTransformer`, and delegates all storage to an inner `ModelRepository`.
 
-Key methods: `save`, `bulkSave`, `bulkSaveAll`, `delete`, `bulkDelete`, `bulkDeleteAll`, `findById`, `findAllById`, `list`, `listAll`, `query`, `generateId`, `withTransaction`.
+Key methods: `save`, `saveInTransaction`, `bulkSave`, `bulkSaveAll`, `delete`, `bulkDelete`, `bulkDeleteAll`, `findById`, `findByIdInTransaction`, `findAllById`, `list`, `listAll`, `query`, `generateId`.
 
-> **Note:** Transaction tests require the Firestore emulator because the in-memory backend does not implement `runTransaction`. Run `pnpm test:emulator` to execute them.
+#### `findByIdInTransaction(transaction, id, ...parentIds)` / `saveInTransaction(transaction, value, ...parentIds)`
+
+Entity-level reads and writes on a `Transaction` obtained from `TransactionProvider.withTransaction`.
+
+- `findByIdInTransaction` reads the document through the transaction, so Firestore retries the transaction if the document changes before commit. Returns `null` when the document is missing or rejected by `modelCustomFilter`.
+- `saveInTransaction` stages a full overwrite of the entity's document; it is persisted only when the transaction commits. If the entity has no id, a new auto-id document is created (the id is not surfaced — pre-generate it with `generateId()` when you need it).
+
+All reads must precede writes within the transaction (standard Firestore rule). Both methods take trailing `parentIds` for nested collections, like `findById` and `save`.
+
+```ts
+await transactionProvider.withTransaction(async (transaction) => {
+  const order = await orderRepository.findByIdInTransaction(transaction, orderId);
+  if (!order) {
+    throw new Error(`Order ${orderId} not found`);
+  }
+  orderRepository.saveInTransaction(transaction, order.markPaid());
+});
+```
 
 ## API summary
 
@@ -193,7 +210,7 @@ Key methods: `save`, `bulkSave`, `bulkSaveAll`, `delete`, `bulkDelete`, `bulkDel
 | `createMemoryFirestore()` | Returns an in-memory Firestore instance |
 | `TransactionProvider` | Service for orchestrating transactions with `withTransaction<T>(work)` |
 | `ModelRepository<M, Path>` | Base repository with `withBatch`, `docRef`, `newDocRef` |
-| `EntityRepository<E, M>` | Abstract entity repository with full CRUD (`save`, `delete`, `findById`, `list`, etc.) |
+| `EntityRepository<E, M>` | Abstract entity repository with full CRUD (`save`, `delete`, `findById`, `list`, etc.) and transactional `findByIdInTransaction` / `saveInTransaction` |
 | `ModelTransformer<E, M>` | Interface for entity ↔ model conversion |
 | `Id` | Type alias for entity id (`string`) |
 
