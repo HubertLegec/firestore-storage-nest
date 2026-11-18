@@ -9,3 +9,13 @@ export const PostsCollection = new CollectionPath<"postId", string, { userId: st
   "postId",
   UsersCollection,
 );
+
+/** Soft-deletable root collection: /notes/{noteId} */
+export const NotesCollection = new CollectionPath<"noteId", string, void>("notes", "noteId");
+
+/** Soft-deletable nested collection: /users/{userId}/notes/{noteId} */
+export const UserNotesCollection = new CollectionPath<"noteId", string, { userId: string }>(
+  "notes",
+  "noteId",
+  UsersCollection,
+);

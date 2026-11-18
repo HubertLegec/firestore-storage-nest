@@ -1,7 +1,7 @@
 import { Timestamp } from "@google-cloud/firestore";
 import type { ModelDataWithOptionalId, ModelTransformer } from "../../src";
-import { Post, User } from "./entities";
-import type { PostModel, UserModel } from "./models";
+import { Note, Post, User } from "./entities";
+import type { NoteModel, PostModel, UserModel } from "./models";
 
 /** Normalizes Firestore Timestamp or Date to Date (emulator/in-memory returns Timestamp). */
 function toDate(value: Date | number | Timestamp): Date {
@@ -39,5 +39,15 @@ export class PostTransformer implements ModelTransformer<Post, PostModel> {
       body: entity.body,
       publishedAt: entity.publishedAt,
     };
+  }
+}
+
+export class NoteTransformer implements ModelTransformer<Note, NoteModel> {
+  fromModel(model: NoteModel): Note {
+    return new Note(model.id, model.text, model.deleted === true);
+  }
+
+  toModel(entity: Note): ModelDataWithOptionalId<NoteModel> {
+    return { id: entity.id, text: entity.text, deleted: entity.deleted };
   }
 }

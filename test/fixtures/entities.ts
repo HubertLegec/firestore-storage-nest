@@ -14,3 +14,11 @@ export class Post {
     readonly publishedAt: Date,
   ) {}
 }
+
+export class Note {
+  constructor(
+    readonly id: string,
+    readonly text: string,
+    readonly deleted: boolean,
+  ) {}
+}
