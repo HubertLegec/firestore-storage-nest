@@ -105,14 +105,12 @@ export abstract class EntityRepository<E, M extends BaseModel> {
    */
   async bulkDeleteAll(items: BulkDeleteItem[]): Promise<void> {
     await this.commitInChunks(items, (batch, { id, parentIds = [] }) => {
-      const docRef = this.modelRepository.docRef(this.pathToDocumentIds(this.getPath(), [...parentIds, id]));
-      batch.delete(docRef);
+      batch.delete(this.documentReferenceById(id, parentIds));
     });
   }
 
   async findById(id: Id, ...parentIds: Id[]): Promise<E | null> {
-    const documentIds = this.pathToDocumentIds(this.getPath(), [...parentIds, id]);
-    const model = await this.modelRepository.findById(documentIds);
+    const model = await this.findModelById(id, parentIds);
     if (!model || !this.modelCustomFilter(model)) {
       return null;
     }
@@ -125,8 +123,7 @@ export abstract class EntityRepository<E, M extends BaseModel> {
    * {@link modelCustomFilter}.
    */
   async findByIdInTransaction(transaction: Transaction, id: Id, ...parentIds: Id[]): Promise<E | null> {
-    const documentIds = this.pathToDocumentIds(this.getPath(), [...parentIds, id]);
-    const snapshot = await transaction.get(this.modelRepository.docRef(documentIds));
+    const snapshot = await transaction.get(this.documentReferenceById(id, parentIds));
     if (!snapshot.exists) {
       return null;
     }
@@ -138,36 +135,22 @@ export abstract class EntityRepository<E, M extends BaseModel> {
   }
 
   async findAllById(ids: Id[], ...parentIds: Id[]): Promise<E[]> {
-    if (ids.length === 0) {
-      return Promise.resolve([]);
-    }
-    const collectionIds = this.pathToCollectionIds(this.getPath(), [...parentIds]);
-    const result = await this.modelRepository.findAll(ids, collectionIds);
-    return result
-      .filter((m) => !!m)
-      .filter((m) => this.modelCustomFilter(m as M))
-      .map((m) => this.modelTransformer.fromModel(m as M));
+    const models = await this.findAllModelsById(ids, parentIds);
+    return this.toEntities(models.filter((model) => this.modelCustomFilter(model)));
   }
 
   async list(attributes?: ModelQuery<M>, ...parentIds: Id[]): Promise<E[]> {
-    const collectionIds = this.pathToCollectionIds(this.getPath(), [...parentIds]);
-    const result = await this.modelRepository.list(attributes ?? null, collectionIds);
-    return result.filter((o) => this.modelCustomFilter(o)).map((m) => this.modelTransformer.fromModel(m));
+    const models = await this.listModels(attributes, parentIds);
+    return this.toEntities(models.filter((model) => this.modelCustomFilter(model)));
   }
 
   async listAll(attributes?: ModelQuery<M>, ...parentIds: Id[]): Promise<E[]> {
-    const collectionIds = this.pathToCollectionIds(this.getPath(), [...parentIds]);
-    const result = await this.modelRepository.list(attributes ?? null, collectionIds);
-    return result.map((m) => this.modelTransformer.fromModel(m));
+    return this.toEntities(await this.listModels(attributes, parentIds));
   }
 
   async query(cb: (qb: Query<M>) => Query<M>, ...parentIds: Id[]): Promise<E[]> {
-    const collectionIds = this.pathToCollectionIds(this.getPath(), [...parentIds]);
-    const result = await this.modelRepository.query(cb, collectionIds);
-    return result
-      .filter((m) => !!m)
-      .filter((m) => this.modelCustomFilter(m))
-      .map((m) => this.modelTransformer.fromModel(m));
+    const models = await this.queryModels(cb, parentIds);
+    return this.toEntities(models.filter((model) => this.modelCustomFilter(model)));
   }
 
   generateId() {
@@ -180,11 +163,43 @@ export abstract class EntityRepository<E, M extends BaseModel> {
     return true;
   }
 
+  /** Read the model with `id` under the given parents, unfiltered. `null` when the document is missing. */
+  protected findModelById(id: Id, parentIds: Id[]): Promise<M | null> {
+    return this.modelRepository.findById(this.pathToDocumentIds(this.getPath(), [...parentIds, id]));
+  }
+
+  /**
+   * Read the models with the given ids under the given parents, unfiltered. Missing documents are left out.
+   * Empty `ids` resolves to `[]` without a read.
+   */
+  protected async findAllModelsById(ids: Id[], parentIds: Id[]): Promise<M[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const models = await this.modelRepository.findAll(ids, this.pathToCollectionIds(this.getPath(), parentIds));
+    return models.filter((model): model is M => model !== null);
+  }
+
+  /** List the models matching `attributes` (all when absent) under the given parents, unfiltered. */
+  protected listModels(attributes: ModelQuery<M> | undefined, parentIds: Id[]): Promise<M[]> {
+    return this.modelRepository.list(attributes ?? null, this.pathToCollectionIds(this.getPath(), parentIds));
+  }
+
+  /** Run the query built by `cb` in the collection under the given parents, unfiltered. */
+  protected queryModels(cb: (qb: Query<M>) => Query<M>, parentIds: Id[]): Promise<M[]> {
+    return this.modelRepository.query(cb, this.pathToCollectionIds(this.getPath(), parentIds));
+  }
+
+  /** Map models to entities with the repository's transformer. Applies no filter. */
+  protected toEntities(models: M[]): E[] {
+    return models.map((model) => this.modelTransformer.fromModel(model));
+  }
+
   /**
    * Slice `items` into BATCH_LIMIT-sized chunks and commit each chunk in its own WriteBatch.
    * Empty input is a no-op. Not atomic across chunks.
    */
-  private async commitInChunks<T>(items: T[], applyToBatch: (batch: WriteBatch, item: T) => void): Promise<void> {
+  protected async commitInChunks<T>(items: T[], applyToBatch: (batch: WriteBatch, item: T) => void): Promise<void> {
     for (let start = 0; start < items.length; start += EntityRepository.BATCH_LIMIT) {
       const chunk = items.slice(start, start + EntityRepository.BATCH_LIMIT);
       await this.modelRepository.withBatch((batch) => {
@@ -201,9 +216,14 @@ export abstract class EntityRepository<E, M extends BaseModel> {
    */
   private documentReference(id: Id | undefined, parentIds: Id[]): DocumentReference {
     if (id) {
-      return this.modelRepository.docRef(this.pathToDocumentIds(this.getPath(), [...parentIds, id]));
+      return this.documentReferenceById(id, parentIds);
     }
     return this.modelRepository.newDocRef(this.pathToCollectionIds(this.getPath(), parentIds));
+  }
+
+  /** Reference to the document with `id` under the given parents, whether or not it exists. */
+  protected documentReferenceById(id: Id, parentIds: Id[]): DocumentReference {
+    return this.modelRepository.docRef(this.pathToDocumentIds(this.getPath(), [...parentIds, id]));
   }
 
   /**

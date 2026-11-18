@@ -200,6 +200,57 @@ await transactionProvider.withTransaction(async (transaction) => {
 });
 ```
 
+### SoftDeletableEntityRepository
+
+`SoftDeletableEntityRepository<E, M>` extends `EntityRepository<E, M>` for collections whose documents are flagged as deleted rather than removed. Its model must extend `SoftDeletableModel`, which adds an optional `deleted?: boolean` field. A document with no `deleted` field counts as active, so existing data needs no migration.
+
+| Method | Behaviour |
+|--------|-----------|
+| `delete(id, ...parentIds)` | Sets `deleted: true` and leaves every other field as it is. A missing document is a no-op; nothing is created. |
+| `bulkDelete(ids, ...parentIds)` / `bulkDeleteAll(items)` | Soft-delete in batched commits of 500. Never remove or create documents. |
+| `hardDelete(id, ...parentIds)` | Removes the document for good, whether or not it is soft-deleted. A missing document is a no-op. |
+| `bulkHardDelete(ids, ...parentIds)` / `bulkHardDeleteAll(items)` | Remove documents for good in batched commits of 500. Missing documents are skipped. |
+| `findById`, `findAllById`, `list`, `query`, `findByIdInTransaction` | Inherited; leave deleted documents out. |
+| `findByIdIncludingDeleted`, `findAllByIdIncludingDeleted`, `listIncludingDeleted`, `queryIncludingDeleted` | Same signatures as their filtered counterparts, but also return deleted documents. |
+
+```ts
+import { SoftDeletableEntityRepository, type SoftDeletableModel } from "@hubert.legec/firestore-storage-nest";
+
+export interface ProductModel extends SoftDeletableModel {
+  name: string;
+}
+
+@Injectable()
+export class ProductRepository extends SoftDeletableEntityRepository<Product, ProductModel> {
+  constructor(@Inject(FIRESTORE) firestore: Firestore) {
+    super(new ProductModelRepository(firestore), new ProductTransformer());
+  }
+}
+
+await productRepository.delete(productId);
+await productRepository.findById(productId);                 // null
+await productRepository.findByIdIncludingDeleted(productId); // the product, still stored with deleted: true
+
+await productRepository.hardDelete(productId);
+await productRepository.findByIdIncludingDeleted(productId); // null: the document is gone
+```
+
+Reach for `hardDelete` only when the data must really go, for example to honour an erasure request; `delete` is the default.
+
+To filter on more than deletion, override `modelCustomFilter` and keep the soft-delete rule by combining with `super`:
+
+```ts
+protected override modelCustomFilter(model: ProductModel): boolean {
+  return super.modelCustomFilter(model) && model.published;
+}
+```
+
+Things to know:
+
+- **Filtering happens in memory.** Deleted documents are read (and billed) and then dropped. A `where("deleted", "!=", true)` query can't do it in Firestore, because it also drops documents that have no `deleted` field.
+- **Your transformer owns the entity's `deleted` flag.** The library reads and writes only the model's `deleted` field. `save` overwrites the whole document, so if `toModel` drops `deleted`, saving an entity loaded through an `…IncludingDeleted` read undeletes it. Map `deleted` both ways in the transformer when such entities can be saved.
+- **Bulk soft deletes take ids of existing documents.** `bulkDelete` and `bulkDeleteAll` use `WriteBatch.update`, which fails when a document is missing: the whole 500-item chunk containing it is rejected and left unchanged (earlier chunks stay committed). The single `delete` treats a missing document as a no-op, and the hard-delete methods skip missing documents.
+
 ## API summary
 
 | Export | Description |
@@ -211,6 +262,8 @@ await transactionProvider.withTransaction(async (transaction) => {
 | `TransactionProvider` | Service for orchestrating transactions with `withTransaction<T>(work)` |
 | `ModelRepository<M, Path>` | Base repository with `withBatch`, `docRef`, `newDocRef` |
 | `EntityRepository<E, M>` | Abstract entity repository with full CRUD (`save`, `delete`, `findById`, `list`, etc.) and transactional `findByIdInTransaction` / `saveInTransaction` |
+| `SoftDeletableEntityRepository<E, M>` | `EntityRepository` whose deletes set `deleted: true` instead of removing documents; filtered reads hide deleted documents, `…IncludingDeleted` reads return them, and `hardDelete` / `bulkHardDelete` / `bulkHardDeleteAll` remove documents for good |
+| `SoftDeletableModel` | Model interface with the optional `deleted?: boolean` flag used by `SoftDeletableEntityRepository` |
 | `ModelTransformer<E, M>` | Interface for entity ↔ model conversion |
 | `Id` | Type alias for entity id (`string`) |
 
